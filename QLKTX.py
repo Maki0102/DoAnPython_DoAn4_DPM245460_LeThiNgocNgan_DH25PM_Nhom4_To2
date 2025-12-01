@@ -19,19 +19,47 @@ except mysql.connector.Error as err:
 
 # =================== Tkinter ===================
 root = tk.Tk()
-root.title("Quản lý sinh viên Ký túc xá")
+root.title("Quản lý Ký túc xá")
 root.geometry("1100x650")
 root.resizable(False, False)
 
 # =================== Tiêu đề ===================
-lbl_title = tk.Label(root, text="QUẢN LÝ SINH VIÊN KÝ TÚC XÁ", font=("Arial", 16, "bold"))
+lbl_title = tk.Label(root, text="QUẢN LÝ KÝ TÚC XÁ", font=("Arial", 16, "bold"))
 lbl_title.pack(pady=10)
 
 
-# ================== Hàm tiện ích ==================
+# ================== Hàm tiện ích CURRENCY ==================
+
+def format_currency(number):
+    """Định dạng số thành chuỗi tiền tệ (ví dụ: 1000000 -> '1,000,000')"""
+    if number is None:
+        return ""
+    try:
+        # Sử dụng locale hoặc format string để thêm dấu phân cách hàng nghìn
+        return "{:,.0f}".format(float(number)).replace(",", ".")
+    except (ValueError, TypeError):
+        return str(number)
+
+
+def parse_currency(currency_str):
+    """Chuyển chuỗi tiền tệ (ví dụ: '1.000.000') thành số nguyên (1000000)"""
+    if not currency_str:
+        return 0
+    try:
+        # Xóa dấu phân cách (dấu chấm hoặc dấu phẩy) và chuyển thành số nguyên
+        cleaned_str = str(currency_str).replace('.', '').replace(',', '').strip()
+        if not cleaned_str:
+            return 0
+        return int(float(cleaned_str))
+    except ValueError:
+        raise ValueError("Tiền phòng phải là một số hợp lệ.")
+
+
+# ================== Hàm tiện ích KHÁC ==================
 def get_selected_ma_sv():
     """Lấy Mã SV đang được hiển thị trong ô nhập liệu."""
     ma_sv = entry_ma_so.get().strip()
+    # Chỉ trả về MaSV nếu nó đang bị khóa (tức là đang ở chế độ sửa)
     return ma_sv if entry_ma_so['state'] == tk.DISABLED else None
 
 
@@ -52,10 +80,13 @@ def load_data():
             ngay_vao_str = ngay_vao.strftime("%m/%d/%y") if ngay_vao else ""
             ngay_ra_str = ngay_ra.strftime("%m/%d/%y") if ngay_ra else ""
 
+            # Định dạng Tiền phòng
+            tien_phong_str = format_currency(tien_phong)
+
             # Chèn vào Treeview
             tree.insert("", "end",
                         values=(ma_sv, ho_ten, ten, gioi_tinh, ngay_sinh_str, ma_phong, ngay_vao_str, ngay_ra_str,
-                                tien_phong, trang_thai))
+                                tien_phong_str, trang_thai)) # Sử dụng tien_phong_str đã định dạng
     except mysql.connector.Error as err:
         messagebox.showerror("Lỗi MySQL", f"Không thể tải dữ liệu:\n{err}")
     except Exception as e:
@@ -64,7 +95,7 @@ def load_data():
 
 def clear_entries():
     """Xóa các trường nhập liệu và đặt lại các giá trị mặc định."""
-    entry_ma_so.config(state=tk.NORMAL)  # Mở khóa Mã SV
+    entry_ma_so.config(state=tk.NORMAL) # Mở khóa Mã SV
     entry_ma_so.delete(0, tk.END)
     entry_ho_ten.delete(0, tk.END)
     entry_ten.delete(0, tk.END)
@@ -89,12 +120,19 @@ def add_record():
 
     ma_phong = combo_ma_phong.get().strip()
     ngay_vao = cal_ngay_vao.get_date()
+    # Lấy ngày ra, nếu trường DateEntry bị xóa hết thì trả về None
     ngay_ra_val = cal_ngay_ra.get_date() if cal_ngay_ra.get() else None
-    tien_phong = entry_tien_phong.get().strip()
     trang_thai = combo_trang_thai.get()
 
     if ma_sv == "":
         messagebox.showwarning("Chú ý", "Mã sinh viên không được để trống!")
+        return
+
+    # Xử lý Tiền phòng
+    try:
+        tien_phong = parse_currency(entry_tien_phong.get())
+    except ValueError as e:
+        messagebox.showwarning("Lỗi nhập liệu", str(e))
         return
 
     # Đảm bảo Mã phòng và Trạng thái không trống khi thêm
@@ -113,6 +151,7 @@ def add_record():
                                      TrangThai)
               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) \
               """
+        # Sử dụng biến tien_phong (số nguyên)
         val = (ma_sv, ten, ho_ten, gioi_tinh, ngay_sinh, ma_phong, ngay_vao, ngay_ra_val, tien_phong, trang_thai)
         cursor.execute(sql, val)
         conn.commit()
@@ -125,7 +164,7 @@ def add_record():
 
 
 def edit_record():
-    """Tải dữ liệu đã chọn lên khung nhập liệu (chỉ là thông báo hướng dẫn)."""
+    """Thông báo cho người dùng biết cần chỉnh sửa trên các ô nhập liệu."""
     selected = tree.focus()
     if not selected:
         messagebox.showwarning("Chú ý", "Vui lòng chọn một sinh viên để sửa.")
@@ -150,11 +189,17 @@ def save_record():
     ma_phong = combo_ma_phong.get().strip()
     ngay_vao = cal_ngay_vao.get_date()
     ngay_ra_val = cal_ngay_ra.get_date() if cal_ngay_ra.get() else None
-    tien_phong = entry_tien_phong.get().strip()
     trang_thai = combo_trang_thai.get()
 
     if not ho_ten or not ten or not ma_phong or not trang_thai:
         messagebox.showwarning("Chú ý", "Các trường Họ tên, Tên, Mã phòng và Trạng thái không được để trống.")
+        return
+
+    # Xử lý Tiền phòng
+    try:
+        tien_phong = parse_currency(entry_tien_phong.get())
+    except ValueError as e:
+        messagebox.showwarning("Lỗi nhập liệu", str(e))
         return
 
     try:
@@ -171,6 +216,7 @@ def save_record():
                   TrangThai = %s
               WHERE MaSV = %s \
               """
+        # Sử dụng biến tien_phong (số nguyên)
         val = (ho_ten, ten, gioi_tinh, ngay_sinh, ma_phong,
                ngay_vao, ngay_ra_val, tien_phong, trang_thai, ma_sv_hien_tai)
 
@@ -233,7 +279,10 @@ def select_record(event):
             combo_ma_phong.set(ma_phong)
             cal_ngay_vao.set_date(ngay_vao_str)
             cal_ngay_ra.set_date(ngay_ra_str)
+
+            # Tiền phòng đã được định dạng khi load_data, chỉ cần insert
             entry_tien_phong.insert(0, tien_phong)
+
             combo_trang_thai.set(trang_thai)
 
 
@@ -259,7 +308,7 @@ entry_ma_so = tk.Entry(frame_grid, width=INPUT_WIDTH)
 entry_ma_so.grid(row=0, column=1, padx=(0, 50), pady=5, sticky="w")
 
 tk.Label(frame_grid, text="Mã phòng").grid(row=0, column=2, padx=(0, 10), pady=5, sticky="w")
-phong_list = [f"P{i:03d}" for i in range(101, 401)]  # P101 đến P400
+phong_list = [f"P{i:03d}" for i in range(101, 401)] # P101 đến P400
 combo_ma_phong = ttk.Combobox(frame_grid, values=phong_list, state="readonly", width=INPUT_WIDTH - 2)
 combo_ma_phong.grid(row=0, column=3, padx=5, pady=5, sticky="w")
 combo_ma_phong.set("")
@@ -299,12 +348,15 @@ cal_ngay_ra.grid(row=3, column=3, padx=5, pady=5, sticky="w")
 
 # --- Hàng 5: Tiền phòng | Trạng thái ---
 tk.Label(frame_grid, text="Tiền phòng").grid(row=4, column=0, padx=(0, 10), pady=5, sticky="w")
+# Hướng dẫn người dùng định dạng
 entry_tien_phong = tk.Entry(frame_grid, width=INPUT_WIDTH)
 entry_tien_phong.grid(row=4, column=1, padx=(0, 50), pady=5, sticky="w")
+# Gợi ý: entry_tien_phong.insert(0, "Ví dụ: 1000000")
 
 tk.Label(frame_grid, text="Trạng thái").grid(row=4, column=2, padx=(0, 10), pady=5, sticky="w")
 # DANH SÁCH TRẠNG THÁI MỚI (CÓ THÊM "Trống")
-trang_thai_list = ["Đang ở", "Đã rời", "Chờ xếp phòng", "Tạm nghỉ", "Trống"]
+trang_thai_list = ["Đang ở", "Đã rời", "Chờ xếp phòng",
+                   "Tạm nghỉ"] # Bỏ "Trống" vì nó dành cho phòng, không phải sinh viên
 combo_trang_thai = ttk.Combobox(frame_grid, values=trang_thai_list, state="readonly", width=INPUT_WIDTH - 2)
 combo_trang_thai.grid(row=4, column=3, padx=5, pady=5, sticky="w")
 combo_trang_thai.set("")
@@ -376,7 +428,8 @@ tree.heading("NgayRa", text="Ngày ra")
 tree.column("NgayRa", width=90, anchor=tk.CENTER)
 
 tree.heading("TienPhong", text="Tiền phòng")
-tree.column("TienPhong", width=80, anchor=tk.CENTER)
+# Tăng chiều rộng để hiển thị số tiền có định dạng
+tree.column("TienPhong", width=100, anchor=tk.CENTER)
 
 tree.heading("TrangThai", text="Trạng thái")
 tree.column("TrangThai", width=100)
