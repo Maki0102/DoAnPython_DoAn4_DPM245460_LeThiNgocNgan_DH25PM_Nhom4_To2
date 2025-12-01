@@ -6,6 +6,7 @@ from datetime import date
 
 # =================== Cấu hình và Kết nối MySQL ===================
 try:
+    # Vui lòng kiểm tra lại thông tin kết nối của bạn
     conn = mysql.connector.connect(
         host="localhost",
         user="root",
@@ -20,7 +21,7 @@ except mysql.connector.Error as err:
 # =================== Tkinter ===================
 root = tk.Tk()
 root.title("Quản lý Ký túc xá")
-root.geometry("1100x650")
+root.geometry("1250x650")  # Tăng chiều rộng để chứa cột mới
 root.resizable(False, False)
 
 # =================== Tiêu đề ===================
@@ -35,7 +36,6 @@ def format_currency(number):
     if number is None:
         return ""
     try:
-        # Sử dụng locale hoặc format string để thêm dấu phân cách hàng nghìn
         return "{:,.0f}".format(float(number)).replace(",", ".")
     except (ValueError, TypeError):
         return str(number)
@@ -46,7 +46,6 @@ def parse_currency(currency_str):
     if not currency_str:
         return 0
     try:
-        # Xóa dấu phân cách (dấu chấm hoặc dấu phẩy) và chuyển thành số nguyên
         cleaned_str = str(currency_str).replace('.', '').replace(',', '').strip()
         if not cleaned_str:
             return 0
@@ -59,7 +58,6 @@ def parse_currency(currency_str):
 def get_selected_ma_sv():
     """Lấy Mã SV đang được hiển thị trong ô nhập liệu."""
     ma_sv = entry_ma_so.get().strip()
-    # Chỉ trả về MaSV nếu nó đang bị khóa (tức là đang ở chế độ sửa)
     return ma_sv if entry_ma_so['state'] == tk.DISABLED else None
 
 
@@ -69,24 +67,24 @@ def load_data():
         tree.delete(item)
 
     try:
+        # Lấy thêm cột TrangThaiDongTien
         cursor.execute(
-            "SELECT MaSV, Ten, HoTen, GioiTinh, NgaySinh, MaPhong, NgayVao, NgayRa, TienPhong, TrangThai FROM quanlyktx")
+            "SELECT MaSV, Ten, HoTen, GioiTinh, NgaySinh, MaPhong, NgayVao, NgayRa, TienPhong, TrangThai, TrangThaiDongTien FROM quanlyktx")
         records = cursor.fetchall()
         for record in records:
-            ma_sv, ten, ho_ten, gioi_tinh, ngay_sinh, ma_phong, ngay_vao, ngay_ra, tien_phong, trang_thai = record
+            # Thêm biến trang_thai_dong_tien
+            ma_sv, ten, ho_ten, gioi_tinh, ngay_sinh, ma_phong, ngay_vao, ngay_ra, tien_phong, trang_thai, trang_thai_dong_tien = record
 
-            # Chuyển đổi Date sang chuỗi hiển thị
             ngay_sinh_str = ngay_sinh.strftime("%m/%d/%y") if ngay_sinh else ""
             ngay_vao_str = ngay_vao.strftime("%m/%d/%y") if ngay_vao else ""
             ngay_ra_str = ngay_ra.strftime("%m/%d/%y") if ngay_ra else ""
 
-            # Định dạng Tiền phòng
             tien_phong_str = format_currency(tien_phong)
 
-            # Chèn vào Treeview
+            # Chèn vào Treeview (thêm trang_thai_dong_tien)
             tree.insert("", "end",
                         values=(ma_sv, ho_ten, ten, gioi_tinh, ngay_sinh_str, ma_phong, ngay_vao_str, ngay_ra_str,
-                                tien_phong_str, trang_thai)) # Sử dụng tien_phong_str đã định dạng
+                                tien_phong_str, trang_thai, trang_thai_dong_tien))
     except mysql.connector.Error as err:
         messagebox.showerror("Lỗi MySQL", f"Không thể tải dữ liệu:\n{err}")
     except Exception as e:
@@ -95,7 +93,7 @@ def load_data():
 
 def clear_entries():
     """Xóa các trường nhập liệu và đặt lại các giá trị mặc định."""
-    entry_ma_so.config(state=tk.NORMAL) # Mở khóa Mã SV
+    entry_ma_so.config(state=tk.NORMAL)
     entry_ma_so.delete(0, tk.END)
     entry_ho_ten.delete(0, tk.END)
     entry_ten.delete(0, tk.END)
@@ -107,6 +105,9 @@ def clear_entries():
     cal_ngay_ra.set_date(date.today())
     entry_tien_phong.delete(0, tk.END)
     combo_trang_thai.set("")
+
+    # Đặt lại trạng thái đóng tiền
+    combo_dong_tien.set("Chưa đóng")
 
 
 # ================== Hàm CRUD ==================
@@ -120,9 +121,11 @@ def add_record():
 
     ma_phong = combo_ma_phong.get().strip()
     ngay_vao = cal_ngay_vao.get_date()
-    # Lấy ngày ra, nếu trường DateEntry bị xóa hết thì trả về None
     ngay_ra_val = cal_ngay_ra.get_date() if cal_ngay_ra.get() else None
     trang_thai = combo_trang_thai.get()
+
+    # Lấy trạng thái đóng tiền từ Combobox
+    trang_thai_dong_tien = combo_dong_tien.get()
 
     if ma_sv == "":
         messagebox.showwarning("Chú ý", "Mã sinh viên không được để trống!")
@@ -135,9 +138,9 @@ def add_record():
         messagebox.showwarning("Lỗi nhập liệu", str(e))
         return
 
-    # Đảm bảo Mã phòng và Trạng thái không trống khi thêm
-    if not ma_phong or not trang_thai:
-        messagebox.showwarning("Chú ý", "Mã phòng và Trạng thái không được để trống!")
+    # Kiểm tra các trường quan trọng
+    if not ma_phong or not trang_thai or not trang_thai_dong_tien:
+        messagebox.showwarning("Chú ý", "Mã phòng, Trạng thái và Trạng thái đóng tiền không được để trống!")
         return
 
     try:
@@ -147,12 +150,13 @@ def add_record():
             return
 
         sql = """
-              INSERT INTO quanlyktx (MaSV, Ten, HoTen, GioiTinh, NgaySinh, MaPhong, NgayVao, NgayRa, TienPhong, \
-                                     TrangThai)
-              VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) \
+              INSERT INTO quanlyktx (MaSV, Ten, HoTen, GioiTinh, NgaySinh, MaPhong, NgayVao, NgayRa, TienPhong,
+                                     TrangThai, TrangThaiDongTien)
+              VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
               """
-        # Sử dụng biến tien_phong (số nguyên)
-        val = (ma_sv, ten, ho_ten, gioi_tinh, ngay_sinh, ma_phong, ngay_vao, ngay_ra_val, tien_phong, trang_thai)
+        # Thêm trang_thai_dong_tien vào val
+        val = (ma_sv, ten, ho_ten, gioi_tinh, ngay_sinh, ma_phong, ngay_vao, ngay_ra_val, tien_phong, trang_thai,
+               trang_thai_dong_tien)
         cursor.execute(sql, val)
         conn.commit()
         messagebox.showinfo("Thành công", "Thêm dữ liệu KTX thành công!")
@@ -191,8 +195,12 @@ def save_record():
     ngay_ra_val = cal_ngay_ra.get_date() if cal_ngay_ra.get() else None
     trang_thai = combo_trang_thai.get()
 
-    if not ho_ten or not ten or not ma_phong or not trang_thai:
-        messagebox.showwarning("Chú ý", "Các trường Họ tên, Tên, Mã phòng và Trạng thái không được để trống.")
+    # Lấy trạng thái đóng tiền
+    trang_thai_dong_tien = combo_dong_tien.get()
+
+    if not ho_ten or not ten or not ma_phong or not trang_thai or not trang_thai_dong_tien:
+        messagebox.showwarning("Chú ý",
+                               "Các trường Họ tên, Tên, Mã phòng, Trạng thái và Trạng thái đóng tiền không được để trống.")
         return
 
     # Xử lý Tiền phòng
@@ -204,21 +212,22 @@ def save_record():
 
     try:
         sql = """
-              UPDATE quanlyktx \
-              SET HoTen     = %s, \
-                  Ten       = %s, \
-                  GioiTinh  = %s, \
-                  NgaySinh  = %s, \
-                  MaPhong   = %s, \
-                  NgayVao   = %s, \
-                  NgayRa    = %s, \
-                  TienPhong = %s, \
-                  TrangThai = %s
+              UPDATE quanlyktx
+              SET HoTen             = %s,
+                  Ten               = %s,
+                  GioiTinh          = %s,
+                  NgaySinh          = %s,
+                  MaPhong           = %s,
+                  NgayVao           = %s,
+                  NgayRa            = %s,
+                  TienPhong         = %s,
+                  TrangThai         = %s,
+                  TrangThaiDongTien = %s # Cập nhật cột mới
               WHERE MaSV = %s \
               """
-        # Sử dụng biến tien_phong (số nguyên)
+        # Thêm trang_thai_dong_tien vào val
         val = (ho_ten, ten, gioi_tinh, ngay_sinh, ma_phong,
-               ngay_vao, ngay_ra_val, tien_phong, trang_thai, ma_sv_hien_tai)
+               ngay_vao, ngay_ra_val, tien_phong, trang_thai, trang_thai_dong_tien, ma_sv_hien_tai)
 
         cursor.execute(sql, val)
         conn.commit()
@@ -263,8 +272,8 @@ def select_record(event):
         if values:
             clear_entries()
 
-            # values: (MaSV, HoTen, Ten, GioiTinh, NgaySinh, MaPhong, NgayVao, NgayRa, TienPhong, TrangThai)
-            ma_sv, ho_ten, ten, gioi_tinh, ngay_sinh_str, ma_phong, ngay_vao_str, ngay_ra_str, tien_phong, trang_thai = values
+            # Lấy giá trị của 11 cột (thêm cột DongTien)
+            ma_sv, ho_ten, ten, gioi_tinh, ngay_sinh_str, ma_phong, ngay_vao_str, ngay_ra_str, tien_phong, trang_thai, trang_thai_dong_tien = values
 
             # Hiển thị và KHÓA Mã SV
             entry_ma_so.config(state=tk.NORMAL)
@@ -280,10 +289,12 @@ def select_record(event):
             cal_ngay_vao.set_date(ngay_vao_str)
             cal_ngay_ra.set_date(ngay_ra_str)
 
-            # Tiền phòng đã được định dạng khi load_data, chỉ cần insert
             entry_tien_phong.insert(0, tien_phong)
 
             combo_trang_thai.set(trang_thai)
+
+            # Hiển thị trạng thái đóng tiền
+            combo_dong_tien.set(trang_thai_dong_tien)
 
 
 def exit_app():
@@ -308,7 +319,7 @@ entry_ma_so = tk.Entry(frame_grid, width=INPUT_WIDTH)
 entry_ma_so.grid(row=0, column=1, padx=(0, 50), pady=5, sticky="w")
 
 tk.Label(frame_grid, text="Mã phòng").grid(row=0, column=2, padx=(0, 10), pady=5, sticky="w")
-phong_list = [f"P{i:03d}" for i in range(101, 401)] # P101 đến P400
+phong_list = [f"P{i:03d}" for i in range(101, 401)]
 combo_ma_phong = ttk.Combobox(frame_grid, values=phong_list, state="readonly", width=INPUT_WIDTH - 2)
 combo_ma_phong.grid(row=0, column=3, padx=5, pady=5, sticky="w")
 combo_ma_phong.set("")
@@ -348,18 +359,23 @@ cal_ngay_ra.grid(row=3, column=3, padx=5, pady=5, sticky="w")
 
 # --- Hàng 5: Tiền phòng | Trạng thái ---
 tk.Label(frame_grid, text="Tiền phòng").grid(row=4, column=0, padx=(0, 10), pady=5, sticky="w")
-# Hướng dẫn người dùng định dạng
 entry_tien_phong = tk.Entry(frame_grid, width=INPUT_WIDTH)
 entry_tien_phong.grid(row=4, column=1, padx=(0, 50), pady=5, sticky="w")
-# Gợi ý: entry_tien_phong.insert(0, "Ví dụ: 1000000")
 
 tk.Label(frame_grid, text="Trạng thái").grid(row=4, column=2, padx=(0, 10), pady=5, sticky="w")
-# DANH SÁCH TRẠNG THÁI MỚI (CÓ THÊM "Trống")
 trang_thai_list = ["Đang ở", "Đã rời", "Chờ xếp phòng",
-                   "Tạm nghỉ"] # Bỏ "Trống" vì nó dành cho phòng, không phải sinh viên
+                   "Tạm nghỉ"]
 combo_trang_thai = ttk.Combobox(frame_grid, values=trang_thai_list, state="readonly", width=INPUT_WIDTH - 2)
 combo_trang_thai.grid(row=4, column=3, padx=5, pady=5, sticky="w")
 combo_trang_thai.set("")
+
+# --- Hàng 6: Trạng thái đóng tiền ---
+tk.Label(frame_grid, text="Đóng tiền").grid(row=5, column=0, padx=(0, 10), pady=5, sticky="w")
+dong_tien_list = ["Đã đóng", "Chưa đóng"]  # Danh sách trạng thái có thể chọn
+combo_dong_tien = ttk.Combobox(frame_grid, values=dong_tien_list, state="readonly", width=INPUT_WIDTH - 2)
+combo_dong_tien.grid(row=5, column=1, padx=(0, 50), pady=5, sticky="w")
+# Đặt giá trị mặc định trong giao diện là 'Chưa đóng'
+combo_dong_tien.set("Chưa đóng")
 
 # ================== Các Nút Thao tác ==================
 frame_buttons = tk.Frame(root, padx=10, pady=10)
@@ -394,7 +410,9 @@ tk.Label(root, text="Danh sách sinh viên KTX", font=("Arial", 12)).pack(pady=5
 frame_table = tk.Frame(root)
 frame_table.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
-columns = ("MaSV", "HoTen", "Ten", "GioiTinh", "NgaySinh", "MaPhong", "NgayVao", "NgayRa", "TienPhong", "TrangThai")
+# Định nghĩa các cột
+columns = ("MaSV", "HoTen", "Ten", "GioiTinh", "NgaySinh", "MaPhong", "NgayVao", "NgayRa", "TienPhong", "TrangThai",
+           "DongTien")
 tree = ttk.Treeview(frame_table, columns=columns, show="headings")
 
 # Thanh cuộn dọc
@@ -428,11 +446,14 @@ tree.heading("NgayRa", text="Ngày ra")
 tree.column("NgayRa", width=90, anchor=tk.CENTER)
 
 tree.heading("TienPhong", text="Tiền phòng")
-# Tăng chiều rộng để hiển thị số tiền có định dạng
 tree.column("TienPhong", width=100, anchor=tk.CENTER)
 
 tree.heading("TrangThai", text="Trạng thái")
 tree.column("TrangThai", width=100)
+
+# Cột Đóng tiền
+tree.heading("DongTien", text="Đóng tiền")
+tree.column("DongTien", width=90, anchor=tk.CENTER)
 
 tree.pack(fill=tk.BOTH, expand=True)
 
