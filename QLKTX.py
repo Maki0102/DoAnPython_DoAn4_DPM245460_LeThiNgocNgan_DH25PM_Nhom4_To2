@@ -404,7 +404,7 @@ btn_delete.pack(side=tk.LEFT, padx=5)
 btn_exit = tk.Button(frame_button_center, text="Thoát", command=exit_app, **button_style)
 btn_exit.pack(side=tk.LEFT, padx=5)
 
-# ================== Khung Tìm kiếm (ĐÃ CĂN GIỮA) ==================
+# ================== Khung Tìm kiếm ==================
 frame_search = tk.Frame(root, padx=10, bg=BG_COLOR)
 frame_search.pack(pady=5, anchor="w", fill=tk.X)
 
@@ -464,11 +464,8 @@ tree.heading("NgayRa", text="Ngày ra")
 tree.column("NgayRa", width=90, anchor=tk.CENTER)
 tree.heading("TienPhong", text="Tiền phòng")
 tree.column("TienPhong", width=100, anchor=tk.CENTER)
-
-# ********** ĐÃ SỬA: Thêm anchor=tk.CENTER vào đây **********
 tree.heading("TrangThai", text="Trạng thái")
 tree.column("TrangThai", width=100, anchor=tk.CENTER)
-
 tree.heading("DongTien", text="Đóng tiền")
 tree.column("DongTien", width=90, anchor=tk.CENTER)
 
