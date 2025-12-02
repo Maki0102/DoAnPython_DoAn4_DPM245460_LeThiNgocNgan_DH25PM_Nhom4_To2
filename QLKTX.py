@@ -41,10 +41,8 @@ lbl_title.pack(pady=10)
 # =========== CÁC HÀM TIỆN ÍCH VÀ LOGIC ỨNG DỤNG =========
 # =======================================================
 
-# Lưu ý: Các hàm tiện ích và CRUD (format_currency, parse_currency, get_selected_ma_sv, load_data, clear_entries, search_data, add_record, edit_record, save_record, delete_record, select_record, exit_app) đã được giữ nguyên như trong mã hoàn chỉnh trước đó.
-# Tôi sẽ chỉ giữ lại các phần cần thiết để chạy và hiển thị sự thay đổi về màu sắc.
-
 # ================== Hàm tiện ích CURRENCY ==================
+
 def format_currency(number):
     if number is None:
         return ""
@@ -85,6 +83,7 @@ def load_data(sql_query=None, params=None):
 
         for record in records:
             ma_sv, ten, ho_ten, gioi_tinh, ngay_sinh, ma_phong, ngay_vao, ngay_ra, tien_phong, trang_thai, trang_thai_dong_tien = record
+
             ngay_sinh_str = ngay_sinh.strftime("%m/%d/%y") if ngay_sinh else ""
             ngay_vao_str = ngay_vao.strftime("%m/%d/%y") if ngay_vao else ""
             ngay_ra_str = ngay_ra.strftime("%m/%d/%y") if ngay_ra else ""
@@ -104,6 +103,7 @@ def load_data(sql_query=None, params=None):
 
 
 def clear_entries():
+    """Xóa các trường nhập liệu và đặt lại các giá trị mặc định."""
     entry_ma_so.config(state=tk.NORMAL)
     entry_ma_so.delete(0, tk.END)
     entry_ho_ten.delete(0, tk.END)
@@ -122,13 +122,18 @@ def clear_entries():
     load_data()
 
 
+# ================== Hàm Tìm kiếm ==================
+
 def search_data():
+    """Tìm kiếm sinh viên theo từ khóa trong các cột MaSV, HoTen, Ten, MaPhong."""
     search_term = entry_search.get().strip()
     if not search_term:
         messagebox.showwarning("Tìm kiếm", "Vui lòng nhập từ khóa tìm kiếm!")
         load_data()
         return
+
     like_term = f"%{search_term}%"
+
     sql = """
           SELECT MaSV, \
                  Ten, \
@@ -148,8 +153,11 @@ def search_data():
              OR MaPhong LIKE %s
           """
     params = (like_term, like_term, like_term, like_term)
+
     load_data(sql, params)
 
+
+# ================== Hàm CRUD ==================
 
 def add_record():
     ma_sv = entry_ma_so.get().strip()
@@ -327,7 +335,7 @@ def exit_app():
 label_config = {"bg": BG_COLOR, "fg": HEADING_COLOR}
 radio_config = {"bg": BG_COLOR, "fg": HEADING_COLOR, "selectcolor": BG_COLOR}
 
-# --- Các định nghĩa Widget (đã được giữ nguyên) ---
+# ================== Frame nhập dữ liệu (Top Frame) ==================
 frame_input = tk.Frame(root, padx=10, pady=10, bg=BG_COLOR)
 frame_input.pack(side=tk.TOP, fill=tk.X)
 frame_grid = tk.Frame(frame_input, bg=BG_COLOR)
@@ -344,8 +352,7 @@ combo_ma_phong = ttk.Combobox(frame_grid, values=phong_list, state="readonly", w
 combo_ma_phong.grid(row=0, column=3, padx=5, pady=5, sticky="w")
 combo_ma_phong.set("")
 
-# Hàng 2-5 (Họ tên, Tên, Phái, Ngày sinh, Ngày vào, Ngày ra, Tiền phòng, Trạng thái)
-# ... (Định nghĩa các Entry, Radiobutton, DateEntry, Combobox còn lại) ...
+# Hàng 2-6 (Họ tên, Tên, Phái, Ngày sinh, Ngày vào, Ngày ra, Tiền phòng, Trạng thái, Đóng tiền)
 tk.Label(frame_grid, text="Họ tên", **label_config).grid(row=1, column=0, padx=(0, 10), pady=5, sticky="w")
 entry_ho_ten = tk.Entry(frame_grid, width=INPUT_WIDTH)
 entry_ho_ten.grid(row=1, column=1, padx=(0, 50), pady=5, sticky="w")
@@ -379,15 +386,13 @@ trang_thai_list = ["Đang ở", "Đã rời", "Chờ xếp phòng",
 combo_trang_thai = ttk.Combobox(frame_grid, values=trang_thai_list, state="readonly", width=INPUT_WIDTH - 2)
 combo_trang_thai.grid(row=4, column=3, padx=5, pady=5, sticky="w")
 combo_trang_thai.set("")
-
-# Hàng 6: Trạng thái đóng tiền
 tk.Label(frame_grid, text="Đóng tiền", **label_config).grid(row=5, column=0, padx=(0, 10), pady=5, sticky="w")
 dong_tien_list = ["Đã đóng", "Chưa đóng"]
 combo_dong_tien = ttk.Combobox(frame_grid, values=dong_tien_list, state="readonly", width=INPUT_WIDTH - 2)
 combo_dong_tien.grid(row=5, column=1, padx=(0, 50), pady=5, sticky="w")
 combo_dong_tien.set("Chưa đóng")
 
-# --- Các Nút Thao tác (đã được giữ nguyên) ---
+# --- Các Nút Thao tác ---
 frame_buttons = tk.Frame(root, padx=10, pady=10, bg=BG_COLOR)
 frame_buttons.pack(side=tk.TOP, fill=tk.X)
 frame_button_center = tk.Frame(frame_buttons, bg=BG_COLOR)
@@ -407,16 +412,23 @@ btn_delete.pack(side=tk.LEFT, padx=5)
 btn_exit = tk.Button(frame_button_center, text="Thoát", command=exit_app, **button_style)
 btn_exit.pack(side=tk.LEFT, padx=5)
 
-# --- Khung Tìm kiếm (đã được giữ nguyên) ---
+# ================== Khung Tìm kiếm (ĐÃ CĂN GIỮA) ==================
 frame_search = tk.Frame(root, padx=10, bg=BG_COLOR)
 frame_search.pack(pady=5, anchor="w", fill=tk.X)
-tk.Label(frame_search, text="Tìm kiếm (Mã SV, Tên, Phòng):", **label_config).pack(side=tk.LEFT, padx=(0, 5))
-entry_search = tk.Entry(frame_search, width=30)
+
+# Frame con để căn giữa các widget tìm kiếm
+frame_search_center = tk.Frame(frame_search, bg=BG_COLOR)
+frame_search_center.pack(expand=True)
+
+tk.Label(frame_search_center, text="Tìm kiếm (Mã SV, Tên, Phòng):", **label_config).pack(side=tk.LEFT, padx=(0, 5))
+entry_search = tk.Entry(frame_search_center, width=30)
 entry_search.pack(side=tk.LEFT, padx=(0, 10))
-btn_search = tk.Button(frame_search, text="Tìm kiếm 🔍", command=search_data, bg=PRIMARY_COLOR, fg=BUTTON_FG, width=15)
+
+btn_search = tk.Button(frame_search_center, text="Tìm kiếm 🔍", command=search_data, bg=PRIMARY_COLOR, fg=BUTTON_FG,
+                       width=15)
 btn_search.pack(side=tk.LEFT, padx=5)
 
-# --- Tiêu đề Danh sách sinh viên KTX (đã sửa lỗi màu nền) ---
+# --- Tiêu đề Danh sách sinh viên KTX ---
 tk.Label(root, text="Danh sách sinh viên KTX", font=("Arial", 12), bg=BG_COLOR, fg=PRIMARY_COLOR).pack(pady=5,
                                                                                                        anchor="w",
                                                                                                        padx=10)
@@ -427,7 +439,7 @@ frame_table.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
 # Cấu hình Treeview Style
 style = ttk.Style()
-# ********** ĐÃ SỬA FOREGROUND THÀNH 'black' **********
+# Màu chữ tiêu đề bảng là MÀU ĐEN
 style.configure("Treeview.Heading", font=('Arial', 10, 'bold'), background=PRIMARY_COLOR, foreground='black')
 style.configure("Treeview", background="white", foreground="black", rowheight=25)
 style.map('Treeview', background=[('selected', '#B0E0E6')])
@@ -442,7 +454,7 @@ scrollbar_y = ttk.Scrollbar(frame_table, orient="vertical", command=tree.yview)
 tree.configure(yscrollcommand=scrollbar_y.set)
 scrollbar_y.pack(side="right", fill="y")
 
-# Thiết lập Heading và Column Width (đã được giữ nguyên)
+# Thiết lập Heading và Column Width
 tree.heading("MaSV", text="Mã SV")
 tree.column("MaSV", width=70, anchor=tk.CENTER)
 tree.heading("HoTen", text="Họ tên")
