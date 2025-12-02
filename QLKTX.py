@@ -18,14 +18,22 @@ except mysql.connector.Error as err:
     messagebox.showerror("Lỗi kết nối", f"Không thể kết nối MySQL:\n{err}")
     exit()
 
+# =================== Cấu hình màu sắc ===================
+BG_COLOR = "#F0F8FF"  # Màu nền (AliceBlue/Trắng xanh nhạt)
+PRIMARY_COLOR = "#007ACC"  # Màu chủ đạo (Xanh dương đậm)
+BUTTON_COLOR = "#4CAF50"  # Màu nút (Xanh lá)
+BUTTON_FG = "white"
+HEADING_COLOR = "#2C3E50"  # Màu chữ tiêu đề
+
 # =================== Tkinter ===================
 root = tk.Tk()
 root.title("Quản lý Ký túc xá")
-root.geometry("1250x650")  # Tăng chiều rộng để chứa cột mới
+root.geometry("1250x650")
 root.resizable(False, False)
+root.config(bg=BG_COLOR)  # Đặt màu nền cho cửa sổ chính
 
 # =================== Tiêu đề ===================
-lbl_title = tk.Label(root, text="QUẢN LÝ KÝ TÚC XÁ", font=("Arial", 16, "bold"))
+lbl_title = tk.Label(root, text="QUẢN LÝ KÝ TÚC XÁ", font=("Arial", 16, "bold"), fg=PRIMARY_COLOR, bg=BG_COLOR)
 lbl_title.pack(pady=10)
 
 
@@ -61,18 +69,18 @@ def get_selected_ma_sv():
     return ma_sv if entry_ma_so['state'] == tk.DISABLED else None
 
 
-def load_data():
-    """Tải dữ liệu từ MySQL vào Treeview."""
+def load_data(sql_query=None, params=None):
+    """Tải dữ liệu từ MySQL vào Treeview, có thể dùng cho tìm kiếm."""
     for item in tree.get_children():
         tree.delete(item)
 
+    if sql_query is None:
+        sql_query = "SELECT MaSV, Ten, HoTen, GioiTinh, NgaySinh, MaPhong, NgayVao, NgayRa, TienPhong, TrangThai, TrangThaiDongTien FROM quanlyktx"
+
     try:
-        # Lấy thêm cột TrangThaiDongTien
-        cursor.execute(
-            "SELECT MaSV, Ten, HoTen, GioiTinh, NgaySinh, MaPhong, NgayVao, NgayRa, TienPhong, TrangThai, TrangThaiDongTien FROM quanlyktx")
+        cursor.execute(sql_query, params or ())
         records = cursor.fetchall()
         for record in records:
-            # Thêm biến trang_thai_dong_tien
             ma_sv, ten, ho_ten, gioi_tinh, ngay_sinh, ma_phong, ngay_vao, ngay_ra, tien_phong, trang_thai, trang_thai_dong_tien = record
 
             ngay_sinh_str = ngay_sinh.strftime("%m/%d/%y") if ngay_sinh else ""
@@ -85,6 +93,10 @@ def load_data():
             tree.insert("", "end",
                         values=(ma_sv, ho_ten, ten, gioi_tinh, ngay_sinh_str, ma_phong, ngay_vao_str, ngay_ra_str,
                                 tien_phong_str, trang_thai, trang_thai_dong_tien))
+
+        if params is not None:  # Nếu là tìm kiếm
+            messagebox.showinfo("Tìm kiếm", f"Tìm thấy {len(records)} kết quả.")
+
     except mysql.connector.Error as err:
         messagebox.showerror("Lỗi MySQL", f"Không thể tải dữ liệu:\n{err}")
     except Exception as e:
@@ -109,9 +121,57 @@ def clear_entries():
     # Đặt lại trạng thái đóng tiền
     combo_dong_tien.set("Chưa đóng")
 
+    # Xóa trường tìm kiếm
+    entry_search.delete(0, tk.END)
+    load_data()  # Tải lại toàn bộ dữ liệu sau khi Hủy/Clear
 
-# ================== Hàm CRUD ==================
 
+# ================== Hàm Tìm kiếm ==================
+
+def search_data():
+    """Tìm kiếm sinh viên theo từ khóa trong các cột MaSV, HoTen, Ten, MaPhong."""
+    search_term = entry_search.get().strip()
+    if not search_term:
+        messagebox.showwarning("Tìm kiếm", "Vui lòng nhập từ khóa tìm kiếm!")
+        load_data()
+        return
+
+    # Tối ưu hóa tìm kiếm: Sử dụng LIKE và % để tìm kiếm linh hoạt
+    like_term = f"%{search_term}%"
+
+    sql = """
+          SELECT MaSV, \
+                 Ten, \
+                 HoTen, \
+                 GioiTinh, \
+                 NgaySinh, \
+                 MaPhong, \
+                 NgayVao, \
+                 NgayRa, \
+                 TienPhong, \
+                 TrangThai, \
+                 TrangThaiDongTien
+          FROM quanlyktx
+          WHERE MaSV LIKE %s \
+             OR HoTen LIKE %s \
+             OR Ten LIKE %s \
+             OR MaPhong LIKE %s
+          """
+    params = (like_term, like_term, like_term, like_term)
+
+    load_data(sql, params)
+
+
+# ================== Hàm CRUD (Không thay đổi) ==================
+# Các hàm add_record, edit_record, save_record, delete_record, select_record, exit_app
+# được giữ nguyên như trong mã gốc.
+
+# GHI CHÚ: Để giữ mã ngắn gọn, tôi không lặp lại toàn bộ các hàm CRUD/select_record/exit_app ở đây.
+# Bạn cần dán các hàm này từ mã gốc vào vị trí này để ứng dụng hoạt động đầy đủ.
+
+# <KHU VỰC DÁN CÁC HÀM CRUD TỪ MÃ GỐC VÀO ĐÂY (add_record -> exit_app)>
+# ... (Code cho add_record, edit_record, save_record, delete_record, select_record, exit_app)
+# (Đã giữ nguyên ở cuối mã hoàn chỉnh)
 def add_record():
     ma_sv = entry_ma_so.get().strip()
     ho_ten = entry_ho_ten.get().strip()
@@ -223,7 +283,7 @@ def save_record():
                   TienPhong         = %s,
                   TrangThai         = %s,
                   TrangThaiDongTien = %s # Cập nhật cột mới
-              WHERE MaSV = %s \
+              WHERE MaSV = %s
               """
         # Thêm trang_thai_dong_tien vào val
         val = (ho_ten, ten, gioi_tinh, ngay_sinh, ma_phong,
@@ -303,66 +363,73 @@ def exit_app():
     root.quit()
 
 
+# </KHU VỰC DÁN CÁC HÀM CRUD TỪ MÃ GỐC VÀO ĐÂY>
+
+
 # ================== Frame nhập dữ liệu (Top Frame) ==================
-frame_input = tk.Frame(root, padx=10, pady=10)
+frame_input = tk.Frame(root, padx=10, pady=10, bg=BG_COLOR)  # Đổi màu nền Frame
 frame_input.pack(side=tk.TOP, fill=tk.X)
 
 # TẠO FRAME MỚI ĐỂ CĂN GIỮA
-frame_grid = tk.Frame(frame_input)
+frame_grid = tk.Frame(frame_input, bg=BG_COLOR)  # Đổi màu nền Frame
 frame_grid.pack(expand=True)
 
 INPUT_WIDTH = 20
 
+# --- Cấu hình màu cho Label và RadioButton ---
+label_config = {"bg": BG_COLOR, "fg": HEADING_COLOR}
+radio_config = {"bg": BG_COLOR, "fg": HEADING_COLOR, "selectcolor": BG_COLOR}
+
 # --- Hàng 1: Mã SV | Mã phòng ---
-tk.Label(frame_grid, text="Mã SV").grid(row=0, column=0, padx=(0, 10), pady=5, sticky="w")
+tk.Label(frame_grid, text="Mã SV", **label_config).grid(row=0, column=0, padx=(0, 10), pady=5, sticky="w")
 entry_ma_so = tk.Entry(frame_grid, width=INPUT_WIDTH)
 entry_ma_so.grid(row=0, column=1, padx=(0, 50), pady=5, sticky="w")
 
-tk.Label(frame_grid, text="Mã phòng").grid(row=0, column=2, padx=(0, 10), pady=5, sticky="w")
+tk.Label(frame_grid, text="Mã phòng", **label_config).grid(row=0, column=2, padx=(0, 10), pady=5, sticky="w")
 phong_list = [f"P{i:03d}" for i in range(101, 401)]
 combo_ma_phong = ttk.Combobox(frame_grid, values=phong_list, state="readonly", width=INPUT_WIDTH - 2)
 combo_ma_phong.grid(row=0, column=3, padx=5, pady=5, sticky="w")
 combo_ma_phong.set("")
 
 # --- Hàng 2: Họ tên | Tên ---
-tk.Label(frame_grid, text="Họ tên").grid(row=1, column=0, padx=(0, 10), pady=5, sticky="w")
+tk.Label(frame_grid, text="Họ tên", **label_config).grid(row=1, column=0, padx=(0, 10), pady=5, sticky="w")
 entry_ho_ten = tk.Entry(frame_grid, width=INPUT_WIDTH)
 entry_ho_ten.grid(row=1, column=1, padx=(0, 50), pady=5, sticky="w")
 
-tk.Label(frame_grid, text="Tên").grid(row=1, column=2, padx=(0, 10), pady=5, sticky="w")
+tk.Label(frame_grid, text="Tên", **label_config).grid(row=1, column=2, padx=(0, 10), pady=5, sticky="w")
 entry_ten = tk.Entry(frame_grid, width=INPUT_WIDTH)
 entry_ten.grid(row=1, column=3, padx=5, pady=5, sticky="w")
 
 # --- Hàng 3: Phái | Ngày sinh ---
-tk.Label(frame_grid, text="Phái").grid(row=2, column=0, padx=(0, 10), pady=5, sticky="w")
+tk.Label(frame_grid, text="Phái", **label_config).grid(row=2, column=0, padx=(0, 10), pady=5, sticky="w")
 phai_var = tk.StringVar(value="Nam")
-radio_nam = tk.Radiobutton(frame_grid, text="Nam", variable=phai_var, value="Nam")
+radio_nam = tk.Radiobutton(frame_grid, text="Nam", variable=phai_var, value="Nam", **radio_config)
 radio_nam.grid(row=2, column=1, padx=(0, 50), pady=5, sticky="w")
-radio_nu = tk.Radiobutton(frame_grid, text="Nữ", variable=phai_var, value="Nữ")
+radio_nu = tk.Radiobutton(frame_grid, text="Nữ", variable=phai_var, value="Nữ", **radio_config)
 radio_nu.grid(row=2, column=1, padx=(60, 50), pady=5, sticky="w")
 
-tk.Label(frame_grid, text="Ngày sinh").grid(row=2, column=2, padx=(0, 10), pady=5, sticky="w")
-cal_ngay_sinh = DateEntry(frame_grid, width=INPUT_WIDTH - 2, background='darkblue',
+tk.Label(frame_grid, text="Ngày sinh", **label_config).grid(row=2, column=2, padx=(0, 10), pady=5, sticky="w")
+cal_ngay_sinh = DateEntry(frame_grid, width=INPUT_WIDTH - 2, background=PRIMARY_COLOR,  # Đổi màu nền lịch
                           foreground='white', borderwidth=2, date_pattern='mm/dd/yy')
 cal_ngay_sinh.grid(row=2, column=3, padx=5, pady=5, sticky="w")
 
 # --- Hàng 4: Ngày vào | Ngày ra ---
-tk.Label(frame_grid, text="Ngày vào").grid(row=3, column=0, padx=(0, 10), pady=5, sticky="w")
-cal_ngay_vao = DateEntry(frame_grid, width=INPUT_WIDTH - 2, background='darkblue',
+tk.Label(frame_grid, text="Ngày vào", **label_config).grid(row=3, column=0, padx=(0, 10), pady=5, sticky="w")
+cal_ngay_vao = DateEntry(frame_grid, width=INPUT_WIDTH - 2, background=PRIMARY_COLOR,  # Đổi màu nền lịch
                          foreground='white', borderwidth=2, date_pattern='mm/dd/yy')
 cal_ngay_vao.grid(row=3, column=1, padx=(0, 50), pady=5, sticky="w")
 
-tk.Label(frame_grid, text="Ngày ra").grid(row=3, column=2, padx=(0, 10), pady=5, sticky="w")
-cal_ngay_ra = DateEntry(frame_grid, width=INPUT_WIDTH - 2, background='darkblue',
+tk.Label(frame_grid, text="Ngày ra", **label_config).grid(row=3, column=2, padx=(0, 10), pady=5, sticky="w")
+cal_ngay_ra = DateEntry(frame_grid, width=INPUT_WIDTH - 2, background=PRIMARY_COLOR,  # Đổi màu nền lịch
                         foreground='white', borderwidth=2, date_pattern='mm/dd/yy')
 cal_ngay_ra.grid(row=3, column=3, padx=5, pady=5, sticky="w")
 
 # --- Hàng 5: Tiền phòng | Trạng thái ---
-tk.Label(frame_grid, text="Tiền phòng").grid(row=4, column=0, padx=(0, 10), pady=5, sticky="w")
+tk.Label(frame_grid, text="Tiền phòng", **label_config).grid(row=4, column=0, padx=(0, 10), pady=5, sticky="w")
 entry_tien_phong = tk.Entry(frame_grid, width=INPUT_WIDTH)
 entry_tien_phong.grid(row=4, column=1, padx=(0, 50), pady=5, sticky="w")
 
-tk.Label(frame_grid, text="Trạng thái").grid(row=4, column=2, padx=(0, 10), pady=5, sticky="w")
+tk.Label(frame_grid, text="Trạng thái", **label_config).grid(row=4, column=2, padx=(0, 10), pady=5, sticky="w")
 trang_thai_list = ["Đang ở", "Đã rời", "Chờ xếp phòng",
                    "Tạm nghỉ"]
 combo_trang_thai = ttk.Combobox(frame_grid, values=trang_thai_list, state="readonly", width=INPUT_WIDTH - 2)
@@ -370,7 +437,7 @@ combo_trang_thai.grid(row=4, column=3, padx=5, pady=5, sticky="w")
 combo_trang_thai.set("")
 
 # --- Hàng 6: Trạng thái đóng tiền ---
-tk.Label(frame_grid, text="Đóng tiền").grid(row=5, column=0, padx=(0, 10), pady=5, sticky="w")
+tk.Label(frame_grid, text="Đóng tiền", **label_config).grid(row=5, column=0, padx=(0, 10), pady=5, sticky="w")
 dong_tien_list = ["Đã đóng", "Chưa đóng"]  # Danh sách trạng thái có thể chọn
 combo_dong_tien = ttk.Combobox(frame_grid, values=dong_tien_list, state="readonly", width=INPUT_WIDTH - 2)
 combo_dong_tien.grid(row=5, column=1, padx=(0, 50), pady=5, sticky="w")
@@ -378,37 +445,61 @@ combo_dong_tien.grid(row=5, column=1, padx=(0, 50), pady=5, sticky="w")
 combo_dong_tien.set("Chưa đóng")
 
 # ================== Các Nút Thao tác ==================
-frame_buttons = tk.Frame(root, padx=10, pady=10)
+frame_buttons = tk.Frame(root, padx=10, pady=10, bg=BG_COLOR)  # Đổi màu nền Frame
 frame_buttons.pack(side=tk.TOP, fill=tk.X)
 
 # CĂN GIỮA CÁC NÚT
-frame_button_center = tk.Frame(frame_buttons)
+frame_button_center = tk.Frame(frame_buttons, bg=BG_COLOR)  # Đổi màu nền Frame
 frame_button_center.pack(expand=True)
 
-btn_add = tk.Button(frame_button_center, text="Thêm", command=add_record, width=10)
+# --- Định nghĩa style cho nút (Đồng bộ màu) ---
+button_style = {"bg": BUTTON_COLOR, "fg": BUTTON_FG, "width": 10}
+
+btn_add = tk.Button(frame_button_center, text="Thêm", command=add_record, **button_style)
 btn_add.pack(side=tk.LEFT, padx=5)
 
-btn_save = tk.Button(frame_button_center, text="Lưu", command=save_record, width=10)
+btn_save = tk.Button(frame_button_center, text="Lưu", command=save_record, **button_style)
 btn_save.pack(side=tk.LEFT, padx=5)
 
-btn_edit = tk.Button(frame_button_center, text="Sửa", command=edit_record, width=10)
+btn_edit = tk.Button(frame_button_center, text="Sửa", command=edit_record, **button_style)
 btn_edit.pack(side=tk.LEFT, padx=5)
 
-btn_cancel = tk.Button(frame_button_center, text="Hủy", command=clear_entries, width=10)
+btn_cancel = tk.Button(frame_button_center, text="Hủy", command=clear_entries, **button_style)
 btn_cancel.pack(side=tk.LEFT, padx=5)
 
-btn_delete = tk.Button(frame_button_center, text="Xóa", command=delete_record, width=10)
+btn_delete = tk.Button(frame_button_center, text="Xóa", command=delete_record, **button_style)
 btn_delete.pack(side=tk.LEFT, padx=5)
 
-btn_exit = tk.Button(frame_button_center, text="Thoát", command=exit_app, width=10)
+btn_exit = tk.Button(frame_button_center, text="Thoát", command=exit_app, **button_style)
 btn_exit.pack(side=tk.LEFT, padx=5)
 
+# ================== Khung Tìm kiếm ==================
+frame_search = tk.Frame(root, padx=10, bg=BG_COLOR)
+frame_search.pack(pady=5, anchor="w", fill=tk.X)
+
+tk.Label(frame_search, text="Tìm kiếm (Mã SV, Tên, Phòng):", **label_config).pack(side=tk.LEFT, padx=(0, 5))
+entry_search = tk.Entry(frame_search, width=30)
+entry_search.pack(side=tk.LEFT, padx=(0, 10))
+
+btn_search = tk.Button(frame_search, text="Tìm kiếm 🔍", command=search_data, bg=PRIMARY_COLOR, fg=BUTTON_FG, width=15)
+btn_search.pack(side=tk.LEFT, padx=5)
+
 # ================== Tiêu đề Danh sách sinh viên KTX ==================
-tk.Label(root, text="Danh sách sinh viên KTX", font=("Arial", 12)).pack(pady=5, anchor="w", padx=10)
+tk.Label(root, text="Danh sách sinh viên KTX", font=("Arial", 12), bg=BG_COLOR, fg=PRIMARY_COLOR).pack(pady=5,
+                                                                                                       anchor="w",
+                                                                                                       padx=10)
 
 # ================== Frame bảng dữ liệu (Treeview - Cột KTX) ==================
 frame_table = tk.Frame(root)
 frame_table.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+
+# Cấu hình Treeview Style
+style = ttk.Style()
+# Đổi màu tiêu đề bảng
+style.configure("Treeview.Heading", font=('Arial', 10, 'bold'), background=PRIMARY_COLOR, foreground='white')
+# Đổi màu hàng
+style.configure("Treeview", background="white", foreground="black", rowheight=25)
+style.map('Treeview', background=[('selected', '#B0E0E6')])  # Màu khi chọn hàng
 
 # Định nghĩa các cột
 columns = ("MaSV", "HoTen", "Ten", "GioiTinh", "NgaySinh", "MaPhong", "NgayVao", "NgayRa", "TienPhong", "TrangThai",
