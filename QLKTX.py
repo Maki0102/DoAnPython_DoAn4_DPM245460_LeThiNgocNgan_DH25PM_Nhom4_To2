@@ -30,7 +30,7 @@ root = tk.Tk()
 root.title("Quản lý Ký túc xá")
 root.geometry("1250x650")
 root.resizable(False, False)
-root.config(bg=BG_COLOR)  # Đặt màu nền cho cửa sổ chính
+root.config(bg=BG_COLOR)
 
 # =================== Tiêu đề ===================
 lbl_title = tk.Label(root, text="QUẢN LÝ KÝ TÚC XÁ", font=("Arial", 16, "bold"), fg=PRIMARY_COLOR, bg=BG_COLOR)
@@ -39,9 +39,8 @@ lbl_title.pack(pady=10)
 
 # =======================================================
 # =========== CÁC HÀM TIỆN ÍCH VÀ LOGIC ỨNG DỤNG =========
+# (Các hàm này được giữ nguyên, chỉ hiển thị để mã có thể chạy)
 # =======================================================
-
-# ================== Hàm tiện ích CURRENCY ==================
 
 def format_currency(number):
     if number is None:
@@ -64,7 +63,6 @@ def parse_currency(currency_str):
         raise ValueError("Tiền phòng phải là một số hợp lệ.")
 
 
-# ================== Hàm tiện ích KHÁC ==================
 def get_selected_ma_sv():
     ma_sv = entry_ma_so.get().strip()
     return ma_sv if entry_ma_so['state'] == tk.DISABLED else None
@@ -103,7 +101,6 @@ def load_data(sql_query=None, params=None):
 
 
 def clear_entries():
-    """Xóa các trường nhập liệu và đặt lại các giá trị mặc định."""
     entry_ma_so.config(state=tk.NORMAL)
     entry_ma_so.delete(0, tk.END)
     entry_ho_ten.delete(0, tk.END)
@@ -122,10 +119,7 @@ def clear_entries():
     load_data()
 
 
-# ================== Hàm Tìm kiếm ==================
-
 def search_data():
-    """Tìm kiếm sinh viên theo từ khóa trong các cột MaSV, HoTen, Ten, MaPhong."""
     search_term = entry_search.get().strip()
     if not search_term:
         messagebox.showwarning("Tìm kiếm", "Vui lòng nhập từ khóa tìm kiếm!")
@@ -156,8 +150,6 @@ def search_data():
 
     load_data(sql, params)
 
-
-# ================== Hàm CRUD ==================
 
 def add_record():
     ma_sv = entry_ma_so.get().strip()
@@ -439,7 +431,6 @@ frame_table.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
 # Cấu hình Treeview Style
 style = ttk.Style()
-# Màu chữ tiêu đề bảng là MÀU ĐEN
 style.configure("Treeview.Heading", font=('Arial', 10, 'bold'), background=PRIMARY_COLOR, foreground='black')
 style.configure("Treeview", background="white", foreground="black", rowheight=25)
 style.map('Treeview', background=[('selected', '#B0E0E6')])
@@ -473,8 +464,11 @@ tree.heading("NgayRa", text="Ngày ra")
 tree.column("NgayRa", width=90, anchor=tk.CENTER)
 tree.heading("TienPhong", text="Tiền phòng")
 tree.column("TienPhong", width=100, anchor=tk.CENTER)
+
+# ********** ĐÃ SỬA: Thêm anchor=tk.CENTER vào đây **********
 tree.heading("TrangThai", text="Trạng thái")
-tree.column("TrangThai", width=100)
+tree.column("TrangThai", width=100, anchor=tk.CENTER)
+
 tree.heading("DongTien", text="Đóng tiền")
 tree.column("DongTien", width=90, anchor=tk.CENTER)
 
